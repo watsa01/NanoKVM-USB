@@ -1,4 +1,4 @@
-import { setBit } from './utils.ts';
+import { setBit } from './utils';
 
 const modifierKeys = new Set(['Control', 'Shift', 'Alt', 'Meta']);
 

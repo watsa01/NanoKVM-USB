@@ -90,7 +90,7 @@ export class SerialService {
         resolve([]);
       }, this.TIMEOUT);
 
-      this.port.on('data', onData);
+      this.port!.on('data', onData);
     });
   }
 

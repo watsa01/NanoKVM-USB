@@ -1,4 +1,4 @@
-import { setBit } from './utils.ts';
+import { setBit } from './utils';
 
 export enum Mode {
   RELATIVE = 0x01,
