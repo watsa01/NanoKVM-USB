@@ -18,8 +18,6 @@ export class WebSocketClient {
   constructor() {}
 
   connect(serverUrl: string): Promise<void> {
-    this.serverUrl = serverUrl;
-
     return new Promise((resolve, reject) => {
       console.log(`Connecting to WebSocket server: ${serverUrl}`);
 

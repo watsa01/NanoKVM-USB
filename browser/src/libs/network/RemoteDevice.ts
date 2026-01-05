@@ -5,7 +5,6 @@ import { WebSocketClient } from './WebSocketClient';
 
 export class RemoteDevice {
   private ws: WebSocketClient;
-  private serverUrl: string = '';
   private mjpegUrl: string = '';
   private pendingInfoRequest: ((info: InfoPacket) => void) | null = null;
 
@@ -52,7 +51,6 @@ export class RemoteDevice {
   }
 
   async connect(serverUrl: string): Promise<void> {
-    this.serverUrl = serverUrl;
     this.mjpegUrl = `${serverUrl}/stream/mjpeg`;
     await this.ws.connect(serverUrl);
   }
