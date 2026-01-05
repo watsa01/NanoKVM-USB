@@ -7,6 +7,7 @@ export class VideoService extends EventEmitter {
   private isStreaming = false;
   private frameBuffer: Buffer[] = [];
   private readonly MAX_BUFFER_SIZE = 10;
+  private dataBuffer: Buffer = Buffer.alloc(0);
 
   constructor() {
     super();
@@ -69,15 +70,57 @@ export class VideoService extends EventEmitter {
     // SOI (Start of Image): 0xFF 0xD8
     // EOI (End of Image): 0xFF 0xD9
 
-    // For simplicity, we'll emit the data as it comes
-    // In production, you'd want to parse individual JPEG frames
-    this.emit('frame', data);
+    // Accumulate incoming data
+    this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
 
-    // Buffer frames for clients that connect mid-stream
-    this.frameBuffer.push(data);
-    if (this.frameBuffer.length > this.MAX_BUFFER_SIZE) {
-      this.frameBuffer.shift();
+    // Parse complete JPEG frames from the buffer
+    while (true) {
+      // Find SOI marker (0xFF 0xD8)
+      const soiIndex = this.findMarker(this.dataBuffer, 0xFF, 0xD8);
+      if (soiIndex === -1) {
+        // No SOI found, clear buffer if it's getting too large
+        if (this.dataBuffer.length > 5 * 1024 * 1024) { // 5MB max
+          this.dataBuffer = Buffer.alloc(0);
+        }
+        break;
+      }
+
+      // Find EOI marker (0xFF 0xD9) after SOI
+      const eoiIndex = this.findMarker(this.dataBuffer, 0xFF, 0xD9, soiIndex + 2);
+      if (eoiIndex === -1) {
+        // No EOI found yet, keep accumulating
+        // Trim data before SOI to save memory
+        if (soiIndex > 0) {
+          this.dataBuffer = this.dataBuffer.subarray(soiIndex);
+        }
+        break;
+      }
+
+      // Extract complete JPEG frame (including EOI marker)
+      const frameEnd = eoiIndex + 2;
+      const frame = this.dataBuffer.subarray(soiIndex, frameEnd);
+
+      // Emit the complete frame
+      this.emit('frame', frame);
+
+      // Buffer frames for clients that connect mid-stream
+      this.frameBuffer.push(frame);
+      if (this.frameBuffer.length > this.MAX_BUFFER_SIZE) {
+        this.frameBuffer.shift();
+      }
+
+      // Remove processed frame from buffer
+      this.dataBuffer = this.dataBuffer.subarray(frameEnd);
     }
+  }
+
+  private findMarker(buffer: Buffer, byte1: number, byte2: number, startIndex: number = 0): number {
+    for (let i = startIndex; i < buffer.length - 1; i++) {
+      if (buffer[i] === byte1 && buffer[i + 1] === byte2) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   async stopStreaming(): Promise<void> {
@@ -96,6 +139,7 @@ export class VideoService extends EventEmitter {
       this.ffmpegProcess = null;
       this.isStreaming = false;
       this.frameBuffer = [];
+      this.dataBuffer = Buffer.alloc(0);
     }
   }
 
