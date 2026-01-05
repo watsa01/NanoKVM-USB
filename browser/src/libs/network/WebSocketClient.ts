@@ -1,5 +1,4 @@
 import { io, Socket } from 'socket.io-client';
-import { EventEmitter } from 'events';
 
 export interface WebSocketClientEvents {
   connected: () => void;
@@ -9,16 +8,14 @@ export interface WebSocketClientEvents {
   'device:status': (status: any) => void;
 }
 
-export class WebSocketClient extends EventEmitter {
+export class WebSocketClient {
   private socket: Socket | null = null;
-  private serverUrl: string = '';
   private reconnectAttempts = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_DELAY = 1000;
+  private eventListeners: Map<string, Function[]> = new Map();
 
-  constructor() {
-    super();
-  }
+  constructor() {}
 
   connect(serverUrl: string): Promise<void> {
     this.serverUrl = serverUrl;
@@ -91,7 +88,17 @@ export class WebSocketClient extends EventEmitter {
     event: K,
     listener: WebSocketClientEvents[K]
   ): this {
-    return super.on(event, listener);
+    const listeners = this.eventListeners.get(event as string) || [];
+    listeners.push(listener as Function);
+    this.eventListeners.set(event as string, listeners);
+    return this;
+  }
+
+  private emit(event: string, ...args: any[]): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach(listener => listener(...args));
+    }
   }
 
   isConnected(): boolean {

@@ -66,9 +66,10 @@ export class Device {
 }
 
 // Factory function to create device based on mode
-export function createDevice(mode: 'local' | 'remote' = 'local', serverUrl?: string): Device | any {
+// Note: For remote mode, dynamically import RemoteDevice when needed
+export async function createDevice(mode: 'local' | 'remote' = 'local'): Promise<Device | any> {
   if (mode === 'remote') {
-    const { RemoteDevice } = require('../network/RemoteDevice');
+    const { RemoteDevice } = await import('../network/RemoteDevice');
     return new RemoteDevice();
   } else {
     return new Device();
