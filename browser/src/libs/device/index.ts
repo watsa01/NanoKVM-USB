@@ -76,5 +76,13 @@ export async function createDevice(mode: 'local' | 'remote' = 'local'): Promise<
   }
 }
 
-// Default local device instance for backward compatibility
-export const device = new Device();
+// Export RemoteDevice for use in components
+export { RemoteDevice } from '../network/RemoteDevice';
+
+// This will be set by App.tsx after connecting
+export let device: any = null;
+
+// Function to set the device instance (called from App.tsx)
+export function setDevice(deviceInstance: any) {
+  device = deviceInstance;
+}

@@ -20,9 +20,19 @@ import {
 import { isKeyboardEnableAtom } from '@/jotai/keyboard.ts';
 import { mouseStyleAtom } from '@/jotai/mouse.ts';
 import { camera } from '@/libs/camera';
-import { device } from '@/libs/device';
+import { setDevice } from '@/libs/device';
+import { RemoteDevice } from '@/libs/network/RemoteDevice';
 import * as storage from '@/libs/storage';
 import type { Resolution } from '@/types.ts';
+
+// Remote backend URL - change this to match your setup
+const BACKEND_URL = `http://${window.location.hostname}:3000`;
+
+// Create remote device instance
+const remoteDevice = new RemoteDevice();
+
+// Set it as the global device instance so all components can use it
+setDevice(remoteDevice);
 
 const App = () => {
   const { t } = useTranslation();
@@ -46,7 +56,7 @@ const App = () => {
 
     return () => {
       camera.close();
-      device.serialPort.close();
+      remoteDevice.disconnect();
     };
   }, []);
 
@@ -60,7 +70,7 @@ const App = () => {
       setResolution(resolution);
     }
 
-    requestMediaPermissions(resolution);
+    connectToRemoteBackend(resolution);
   }
 
   function initRotation() {
@@ -70,25 +80,21 @@ const App = () => {
     }
   }
 
-  async function requestMediaPermissions(resolution?: Resolution) {
+  async function connectToRemoteBackend(resolution?: Resolution) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: resolution?.width || 1920 },
-          height: { ideal: resolution?.height || 1080 }
-        },
-        audio: true
-      });
-      stream.getTracks().forEach((track) => track.stop());
+      console.log(`Connecting to remote backend: ${BACKEND_URL}`);
+
+      // Connect to remote device
+      await remoteDevice.connect(BACKEND_URL);
+
+      // Open remote camera stream
+      await camera.openRemote(remoteDevice.getMjpegUrl());
 
       setIsCameraAvailable(true);
+      console.log('Connected to remote backend successfully');
     } catch (err: any) {
-      console.log('failed to request media permissions: ', err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setIsCameraAvailable(false);
-      } else {
-        setIsCameraAvailable(true);
-      }
+      console.error('Failed to connect to remote backend:', err);
+      setIsCameraAvailable(false);
     }
 
     setIsLoading(false);
@@ -129,8 +135,10 @@ const App = () => {
         </>
       )}
 
-      <video
+      <img
         id="video"
+        src={camera.getMjpegUrl()}
+        alt="Remote KVM Video Stream"
         className={clsx(
           'block select-none',
           shouldSwapDimensions ? 'min-h-[640px] min-w-[360px]' : 'min-h-[360px] min-w-[640px]',
@@ -143,8 +151,6 @@ const App = () => {
           maxHeight: shouldSwapDimensions ? '100vw' : '100%',
           objectFit: 'scale-down'
         }}
-        autoPlay
-        playsInline
       />
 
       <VirtualKeyboard isBigScreen={isBigScreen} />
