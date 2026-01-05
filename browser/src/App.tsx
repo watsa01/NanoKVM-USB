@@ -23,7 +23,6 @@ import { camera } from '@/libs/camera';
 import { setDevice } from '@/libs/device';
 import { RemoteDevice } from '@/libs/network/RemoteDevice';
 import * as storage from '@/libs/storage';
-import type { Resolution } from '@/types.ts';
 
 // Remote backend URL - change this to match your setup
 const BACKEND_URL = `http://${window.location.hostname}:3000`;
