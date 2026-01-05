@@ -65,4 +65,15 @@ export class Device {
   }
 }
 
+// Factory function to create device based on mode
+export function createDevice(mode: 'local' | 'remote' = 'local', serverUrl?: string): Device | any {
+  if (mode === 'remote') {
+    const { RemoteDevice } = require('../network/RemoteDevice');
+    return new RemoteDevice();
+  } else {
+    return new Device();
+  }
+}
+
+// Default local device instance for backward compatibility
 export const device = new Device();

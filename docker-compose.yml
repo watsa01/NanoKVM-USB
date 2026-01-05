@@ -1,9 +1,52 @@
+version: '3.8'
+
 services:
-  nanokvm-usb:
+  # Backend service (runs on machine with KVM device)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: sipeed/nanokvm-usb-backend:latest
+    container_name: nanokvm-usb-backend
+    privileged: true  # Required for USB device access
+    devices:
+      - /dev/video0:/dev/video0  # USB video device
+      - /dev/ttyUSB0:/dev/ttyUSB0  # USB serial device (adjust as needed)
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - VIDEO_DEVICE=/dev/video0
+      - SERIAL_DEVICE=/dev/ttyUSB0
+      - SERIAL_BAUD=57600
+      - VIDEO_RESOLUTION=1920x1080
+      - MJPEG_QUALITY=80
+      - MJPEG_FPS=30
+      - CORS_ORIGIN=*
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    stdin_open: true  # Keep stdin open
+    tty: true         # Allocate a pseudo-TTY for better interaction
+    networks:
+      - nanokvm-network
+
+  # Frontend service (browser-based UI)
+  frontend:
     build:
       context: ./
       dockerfile: Dockerfile
-    image: sipeed/nanokvm-usb:latest
-    container_name: nanokvm-usb
+    image: sipeed/nanokvm-usb-frontend:latest
+    container_name: nanokvm-usb-frontend
     ports:
-      - "9000:80"   
+      - "9000:80"  # Map container port 80 to host port 9000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    stdin_open: true  # Keep stdin open
+    tty: true         # Allocate a pseudo-TTY for better interaction
+    networks:
+      - nanokvm-network
+
+networks:
+  nanokvm-network:
+    driver: bridge

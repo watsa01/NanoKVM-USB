@@ -21,6 +21,7 @@
     "react-i18next": "^15.1.4",
     "react-responsive": "^10.0.0",
     "react-simple-keyboard": "^3.8.28",
+    "socket.io-client": "^4.6.1",
     "vaul": "^1.1.1",
     "yocto-queue": "^1.1.1"
   },

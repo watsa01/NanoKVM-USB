@@ -4,6 +4,8 @@ class Camera {
   height: number = 1080;
   audioId: string = '';
   stream: MediaStream | null = null;
+  mjpegUrl: string = '';
+  mode: 'local' | 'remote' = 'local';
 
   public async open(id: string, width: number, height: number, audioId?: string) {
     if (!id && !this.id) {
@@ -20,12 +22,22 @@ class Camera {
     this.id = id;
     this.width = width;
     this.height = height;
+    this.mode = 'local';
     if (audioId) this.audioId = audioId;
     this.stream = await navigator.mediaDevices.getUserMedia(constraints);
   }
 
+  public async openRemote(mjpegUrl: string) {
+    this.close();
+    this.mjpegUrl = mjpegUrl;
+    this.mode = 'remote';
+  }
+
   public async updateResolution(width: number, height: number) {
-    return this.open(this.id, width, height, this.audioId);
+    if (this.mode === 'local') {
+      return this.open(this.id, width, height, this.audioId);
+    }
+    // For remote mode, resolution is controlled by the backend
   }
 
   public close(): void {
@@ -33,14 +45,23 @@ class Camera {
       this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
+    this.mjpegUrl = '';
   }
 
   public getStream(): MediaStream | null {
     return this.stream;
   }
 
+  public getMjpegUrl(): string {
+    return this.mjpegUrl;
+  }
+
+  public getMode(): 'local' | 'remote' {
+    return this.mode;
+  }
+
   public isOpen(): boolean {
-    return this.stream !== null;
+    return this.stream !== null || this.mjpegUrl !== '';
   }
 }
 
