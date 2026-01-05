@@ -43,6 +43,8 @@ const App = () => {
   const serialState = useAtomValue(serialStateAtom);
   const isKeyboardEnable = useAtomValue(isKeyboardEnableAtom);
   const setResolution = useSetAtom(resolutionAtom);
+  const setVideoState = useSetAtom(videoStateAtom);
+  const setSerialState = useSetAtom(serialStateAtom);
   const [videoRotation, setVideoRotation] = useAtom(videoRotationAtom);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -88,6 +90,10 @@ const App = () => {
 
       // Open remote camera stream
       await camera.openRemote(remoteDevice.getMjpegUrl());
+
+      // Set connection states to bypass DeviceModal
+      setVideoState('connected');
+      setSerialState('connected');
 
       setIsCameraAvailable(true);
       console.log('Connected to remote backend successfully');
