@@ -70,7 +70,7 @@ const App = () => {
       setResolution(resolution);
     }
 
-    connectToRemoteBackend(resolution);
+    connectToRemoteBackend();
   }
 
   function initRotation() {
@@ -80,7 +80,7 @@ const App = () => {
     }
   }
 
-  async function connectToRemoteBackend(resolution?: Resolution) {
+  async function connectToRemoteBackend() {
     try {
       console.log(`Connecting to remote backend: ${BACKEND_URL}`);
 
