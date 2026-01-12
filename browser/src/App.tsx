@@ -9,6 +9,7 @@ import { DeviceModal } from '@/components/device-modal';
 import { Keyboard } from '@/components/keyboard';
 import { Menu } from '@/components/menu';
 import { Mouse } from '@/components/mouse';
+import { VideoCanvas } from '@/components/video-canvas';
 import { VirtualKeyboard } from '@/components/virtual-keyboard';
 import {
   resolutionAtom,
@@ -140,22 +141,17 @@ const App = () => {
         </>
       )}
 
-      <img
-        id="video"
-        src={camera.getMjpegUrl()}
-        alt="Remote KVM Video Stream"
+      <VideoCanvas
+        mjpegUrl={camera.getMjpegUrl()}
+        videoScale={videoScale}
+        videoRotation={videoRotation}
+        shouldSwapDimensions={shouldSwapDimensions}
+        mouseStyle={mouseStyle}
         className={clsx(
           'block select-none',
           shouldSwapDimensions ? 'min-h-[640px] min-w-[360px]' : 'min-h-[360px] min-w-[640px]',
           mouseStyle
         )}
-        style={{
-          transform: `scale(${videoScale}) rotate(${videoRotation}deg)`,
-          transformOrigin: 'center',
-          maxWidth: shouldSwapDimensions ? '100vh' : '100%',
-          maxHeight: shouldSwapDimensions ? '100vw' : '100%',
-          objectFit: 'scale-down'
-        }}
       />
 
       <VirtualKeyboard isBigScreen={isBigScreen} />
