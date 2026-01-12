@@ -21,7 +21,13 @@ export const VideoCanvas = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   const isRenderingRef = useRef(false);
   const latestImageRef = useRef<HTMLImageElement | null>(null);
+  const pendingFramesRef = useRef<Uint8Array[]>([]);
+  const lastFrameTimeRef = useRef<number>(Date.now());
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
+
+  // Reconnect if no frames for this long (in ms)
+  const RECONNECT_TIMEOUT = 3000;
 
   useEffect(() => {
     if (!mjpegUrl) return;
@@ -37,16 +43,126 @@ export const VideoCanvas = ({
     abortControllerRef.current = abortController;
 
     let isActive = true;
+    let streamGeneration = 0;
+
+    const reconnectStream = () => {
+      console.log('Forcing stream reconnection due to stall...');
+      abortControllerRef.current?.abort();
+    };
+
+    const startReconnectMonitor = () => {
+      const checkForStall = () => {
+        if (!isActive) return;
+
+        const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
+        if (timeSinceLastFrame > RECONNECT_TIMEOUT) {
+          reconnectStream();
+          return;
+        }
+
+        reconnectTimerRef.current = setTimeout(checkForStall, 1000);
+      };
+
+      reconnectTimerRef.current = setTimeout(checkForStall, 1000);
+    };
+
+    const stopReconnectMonitor = () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+
+    const renderLatestFrame = () => {
+      // Skip if already rendering
+      if (isRenderingRef.current || pendingFramesRef.current.length === 0) {
+        return;
+      }
+
+      isRenderingRef.current = true;
+
+      // Get ONLY the latest frame and discard all others
+      const frameData = pendingFramesRef.current[pendingFramesRef.current.length - 1];
+      const droppedCount = pendingFramesRef.current.length - 1;
+      pendingFramesRef.current = [];
+
+      if (droppedCount > 0) {
+        console.log(`Dropped ${droppedCount} old frames to maintain low latency`);
+      }
+
+      // Create blob and object URL for the JPEG data
+      const blob = new Blob([frameData], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+
+      const img = new Image();
+
+      img.onload = () => {
+        if (!isActive) {
+          URL.revokeObjectURL(url);
+          isRenderingRef.current = false;
+          return;
+        }
+
+        // Update canvas dimensions if image size changed
+        if (canvas.width !== img.naturalWidth || canvas.height !== img.naturalHeight) {
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+        }
+
+        // Clear and draw the new frame
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+
+        // Clean up
+        if (latestImageRef.current) {
+          const oldUrl = latestImageRef.current.src;
+          if (oldUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(oldUrl);
+          }
+        }
+        latestImageRef.current = img;
+
+        isRenderingRef.current = false;
+
+        // Render next frame if available
+        if (pendingFramesRef.current.length > 0) {
+          requestAnimationFrame(renderLatestFrame);
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        isRenderingRef.current = false;
+        console.error('Failed to decode JPEG frame');
+
+        // Try next frame if available
+        if (pendingFramesRef.current.length > 0) {
+          requestAnimationFrame(renderLatestFrame);
+        }
+      };
+
+      img.src = url;
+    };
 
     const startStreaming = async () => {
+      const currentGeneration = ++streamGeneration;
+
       try {
-        console.log('Starting MJPEG stream fetch:', mjpegUrl);
+        console.log(`Starting MJPEG stream fetch (generation ${currentGeneration}):`, mjpegUrl);
+
+        // Start monitoring for stalls
+        startReconnectMonitor();
+
+        // Update last frame time to prevent immediate reconnect
+        lastFrameTimeRef.current = Date.now();
 
         const response = await fetch(mjpegUrl, {
-          signal: abortController.signal,
+          signal: abortControllerRef.current!.signal,
           cache: 'no-store',
           headers: {
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           }
         });
 
@@ -59,7 +175,6 @@ export const VideoCanvas = ({
         }
 
         const reader = response.body.getReader();
-        const decoder = new TextDecoder();
         let buffer = new Uint8Array(0);
 
         // Find JPEG frame boundaries (SOI: 0xFF 0xD8, EOI: 0xFF 0xD9)
@@ -78,59 +193,6 @@ export const VideoCanvas = ({
             if (match) return i;
           }
           return -1;
-        };
-
-        const renderFrame = (frameData: Uint8Array) => {
-          // Skip rendering if already rendering (drop frame for low latency)
-          if (isRenderingRef.current) {
-            return;
-          }
-
-          isRenderingRef.current = true;
-
-          // Create blob and object URL for the JPEG data
-          const blob = new Blob([frameData], { type: 'image/jpeg' });
-          const url = URL.createObjectURL(blob);
-
-          const img = new Image();
-
-          img.onload = () => {
-            if (!isActive) {
-              URL.revokeObjectURL(url);
-              isRenderingRef.current = false;
-              return;
-            }
-
-            // Update canvas dimensions if image size changed
-            if (canvas.width !== img.naturalWidth || canvas.height !== img.naturalHeight) {
-              canvas.width = img.naturalWidth;
-              canvas.height = img.naturalHeight;
-              setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-            }
-
-            // Clear and draw the new frame
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-
-            // Clean up
-            if (latestImageRef.current) {
-              const oldUrl = latestImageRef.current.src;
-              if (oldUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(oldUrl);
-              }
-            }
-            latestImageRef.current = img;
-
-            isRenderingRef.current = false;
-          };
-
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            isRenderingRef.current = false;
-            console.error('Failed to decode JPEG frame');
-          };
-
-          img.src = url;
         };
 
         // Read stream and parse MJPEG frames
@@ -155,7 +217,7 @@ export const VideoCanvas = ({
             continue;
           }
 
-          // Extract complete JPEG frames
+          // Extract all complete JPEG frames
           while (true) {
             const soiIndex = findMarker(buffer, SOI);
             if (soiIndex === -1) {
@@ -179,8 +241,19 @@ export const VideoCanvas = ({
             const frameEnd = eoiIndex + 2;
             const frame = buffer.slice(soiIndex, frameEnd);
 
-            // Render frame (will skip if already rendering)
-            renderFrame(frame);
+            // Update last frame time
+            lastFrameTimeRef.current = Date.now();
+
+            // Add frame to pending queue (keep max 3 frames)
+            pendingFramesRef.current.push(frame);
+            if (pendingFramesRef.current.length > 3) {
+              pendingFramesRef.current.shift();
+            }
+
+            // Trigger render if not already rendering
+            if (!isRenderingRef.current) {
+              requestAnimationFrame(renderLatestFrame);
+            }
 
             // Remove processed frame from buffer
             buffer = buffer.slice(frameEnd);
@@ -189,9 +262,26 @@ export const VideoCanvas = ({
 
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          console.log('Stream fetch aborted');
+          console.log(`Stream fetch aborted (generation ${currentGeneration})`);
         } else {
           console.error('Error streaming MJPEG:', err);
+        }
+      } finally {
+        stopReconnectMonitor();
+
+        // Reconnect if still active
+        if (isActive) {
+          console.log(`Stream ended, reconnecting in 100ms...`);
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          if (isActive) {
+            // Create new abort controller for reconnect
+            const newAbortController = new AbortController();
+            abortControllerRef.current = newAbortController;
+
+            // Restart streaming
+            await startStreaming();
+          }
         }
       }
     };
@@ -200,8 +290,13 @@ export const VideoCanvas = ({
 
     // Cleanup function
     return () => {
+      console.log('Cleaning up video stream');
       isActive = false;
-      abortController.abort();
+      stopReconnectMonitor();
+      abortControllerRef.current?.abort();
+
+      // Clear pending frames
+      pendingFramesRef.current = [];
 
       // Clean up any pending image URLs
       if (latestImageRef.current) {
