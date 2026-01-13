@@ -21,11 +21,12 @@ export const VideoCanvas = ({
   const latestImageRef = useRef<HTMLImageElement | null>(null);
   const pendingFramesRef = useRef<Uint8Array[]>([]);
   const lastFrameTimeRef = useRef<number>(Date.now());
+  const lastRenderTimeRef = useRef<number>(Date.now());
   const reconnectTimerRef = useRef<number | null>(null);
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
 
   // Reconnect if no frames for this long (in ms)
-  const RECONNECT_TIMEOUT = 3000;
+  const RECONNECT_TIMEOUT = 500; // Aggressive reconnection to prevent buffer accumulation
 
   useEffect(() => {
     if (!mjpegUrl) return;
@@ -71,6 +72,17 @@ export const VideoCanvas = ({
       }
     };
 
+    const schedulePeriodicReconnect = () => {
+      // Force reconnect every 5 seconds to prevent buffer accumulation
+      const periodicReconnectTimer = setTimeout(() => {
+        if (!isActive) return;
+        console.log('Periodic reconnect to flush network buffers');
+        abortControllerRef.current?.abort();
+      }, 5000);
+
+      return periodicReconnectTimer;
+    };
+
     const renderLatestFrame = () => {
       // Skip if already rendering
       if (isRenderingRef.current || pendingFramesRef.current.length === 0) {
@@ -87,6 +99,14 @@ export const VideoCanvas = ({
       if (droppedCount > 0) {
         console.log(`Dropped ${droppedCount} old frames to maintain low latency`);
       }
+
+      // Track render latency
+      const now = Date.now();
+      const latency = now - lastFrameTimeRef.current;
+      if (latency > 1000) {
+        console.warn(`High latency detected: ${latency}ms since last frame arrival`);
+      }
+      lastRenderTimeRef.current = now;
 
       // Create blob and object URL for the JPEG data
       const blob = new Blob([frameData], { type: 'image/jpeg' });
@@ -145,12 +165,16 @@ export const VideoCanvas = ({
 
     const startStreaming = async () => {
       const currentGeneration = ++streamGeneration;
+      let periodicTimer: number | null = null;
 
       try {
         console.log(`Starting MJPEG stream fetch (generation ${currentGeneration}):`, mjpegUrl);
 
         // Start monitoring for stalls
         startReconnectMonitor();
+
+        // Schedule periodic reconnect to flush network buffers
+        periodicTimer = schedulePeriodicReconnect();
 
         // Update last frame time to prevent immediate reconnect
         lastFrameTimeRef.current = Date.now();
@@ -242,9 +266,9 @@ export const VideoCanvas = ({
             // Update last frame time
             lastFrameTimeRef.current = Date.now();
 
-            // Add frame to pending queue (keep max 3 frames)
+            // Add frame to pending queue (keep max 1 frame for lowest latency)
             pendingFramesRef.current.push(frame);
-            if (pendingFramesRef.current.length > 3) {
+            if (pendingFramesRef.current.length > 1) {
               pendingFramesRef.current.shift();
             }
 
@@ -266,6 +290,11 @@ export const VideoCanvas = ({
         }
       } finally {
         stopReconnectMonitor();
+
+        // Clear periodic reconnect timer
+        if (periodicTimer !== null) {
+          clearTimeout(periodicTimer);
+        }
 
         // Reconnect if still active
         if (isActive) {
