@@ -35,144 +35,130 @@ export const Relative = () => {
 
   // listen mouse events
   useEffect(() => {
-    let canvas = document.getElementById('video');
-
-    // Retry finding canvas if not immediately available
-    if (!canvas) {
-      const retryInterval = setInterval(() => {
-        canvas = document.getElementById('video');
-        if (canvas) {
-          clearInterval(retryInterval);
-          attachListeners();
-        }
-      }, 100);
-
-      // Give up after 3 seconds
-      setTimeout(() => clearInterval(retryInterval), 3000);
-      return;
-    }
-
-    attachListeners();
-
-    function attachListeners() {
-      if (!canvas) return;
-
-    document.addEventListener('pointerlockchange', handlePointerLockChange);
-    canvas.addEventListener('click', handleClick);
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('wheel', handleWheel);
-    canvas.addEventListener('contextmenu', disableEvent);
-
-    function handleClick(event: any) {
-      disableEvent(event);
-
-      if (!isLockedRef.current) {
-        canvas!.requestPointerLock();
-      }
-    }
+    let canvas: HTMLElement | null = null;
 
     function handlePointerLockChange() {
       isLockedRef.current = document.pointerLockElement === canvas;
     }
 
-    // press button
+    function handleClick(event: any) {
+      disableEvent(event);
+      if (!isLockedRef.current) {
+        canvas?.requestPointerLock();
+      }
+    }
+
     async function handleMouseDown(event: any) {
       disableEvent(event);
 
       switch (event.button) {
-        case 0:
-          keyRef.current.left = true;
-          break;
-        case 1:
-          keyRef.current.mid = true;
-          break;
-        case 2:
-          keyRef.current.right = true;
-          break;
-        default:
-          console.log(`unknown button ${event.button}`);
-          return;
+        case 0: keyRef.current.left = true; break;
+        case 1: keyRef.current.mid = true; break;
+        case 2: keyRef.current.right = true; break;
+        default: return;
       }
 
       await send(0, 0, 0);
     }
 
-    // release button
     async function handleMouseUp(event: any) {
       disableEvent(event);
 
       switch (event.button) {
-        case 0:
-          keyRef.current.left = false;
-          break;
-        case 1:
-          keyRef.current.mid = false;
-          break;
-        case 2:
-          keyRef.current.right = false;
-          break;
-        default:
-          console.log(`unknown button ${event.button}`);
-          return;
+        case 0: keyRef.current.left = false; break;
+        case 1: keyRef.current.mid = false; break;
+        case 2: keyRef.current.right = false; break;
+        default: return;
       }
 
       await send(0, 0, 0);
     }
 
-    // mouse move
     async function handleMouseMove(event: any) {
       disableEvent(event);
 
-      let x = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-      let y = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+      let x =
+        event.movementX ||
+        event.mozMovementX ||
+        event.webkitMovementX ||
+        0;
+      let y =
+        event.movementY ||
+        event.mozMovementY ||
+        event.webkitMovementY ||
+        0;
+
       if (x === 0 && y === 0) return;
 
-      // Apply 2x multiplier for small movements
       x = Math.abs(x) < 10 ? x * 2 : x;
       y = Math.abs(y) < 10 ? y * 2 : y;
 
-      // Clamp to valid signed byte range (-128 to 127)
       x = Math.max(-128, Math.min(127, x));
       y = Math.max(-128, Math.min(127, y));
 
       await send(x, y, 0);
-
       mouseJiggler.moveEventCallback();
     }
 
-    // mouse scroll
     async function handleWheel(event: any) {
       disableEvent(event);
 
-      const currentTime = Date.now();
-      if (currentTime - lastScrollTimeRef.current < scrollInterval) {
-        return;
-      }
+      const now = Date.now();
+      if (now - lastScrollTimeRef.current < scrollInterval) return;
 
       const delta = Math.floor(event.deltaY);
       if (delta === 0) return;
 
-      await send(0, 0, delta > 0 ? -1 * scrollDirection : scrollDirection);
+      await send(
+        0,
+        0,
+        delta > 0 ? -scrollDirection : scrollDirection
+      );
 
-      lastScrollTimeRef.current = currentTime;
+      lastScrollTimeRef.current = now;
     }
 
+    function attachListeners() {
+      if (!canvas) return;
+
+      document.addEventListener('pointerlockchange', handlePointerLockChange);
+      canvas.addEventListener('click', handleClick);
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('wheel', handleWheel);
+      canvas.addEventListener('contextmenu', disableEvent);
     }
+
+    function detachListeners() {
+      if (!canvas) return;
+
+      document.removeEventListener('pointerlockchange', handlePointerLockChange);
+      canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('wheel', handleWheel);
+      canvas.removeEventListener('contextmenu', disableEvent);
+    }
+
+    const retry = setInterval(() => {
+      canvas = document.getElementById('video');
+      if (canvas) {
+        clearInterval(retry);
+        attachListeners();
+      }
+    }, 100);
+
+    const timeout = setTimeout(() => clearInterval(retry), 3000);
 
     return () => {
-      if (canvas) {
-        document.removeEventListener('pointerlockchange', handlePointerLockChange);
-        canvas.removeEventListener('click', handleClick);
-        canvas.removeEventListener('mousemove', handleMouseMove);
-        canvas.removeEventListener('mousedown', handleMouseDown);
-        canvas.removeEventListener('mouseup', handleMouseUp);
-        canvas.removeEventListener('wheel', handleWheel);
-        canvas.removeEventListener('contextmenu', disableEvent);
-      }
+      clearInterval(retry);
+      clearTimeout(timeout);
+      detachListeners();
     };
   }, [resolution, scrollDirection, scrollInterval]);
+
 
   async function send(x: number, y: number, scroll: number) {
     await device.sendMouseRelativeData(keyRef.current, x, y, scroll);
