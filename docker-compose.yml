@@ -11,12 +11,12 @@ services:
     privileged: true  # Required for USB device access
     devices:
       - /dev/video0:/dev/video0  # USB video device
-      - /dev/ttyUSB0:/dev/ttyUSB0  # USB serial device (adjust as needed)
+      - /dev/ttyUSB5:/dev/ttyUSB5  # CH341 UART converter (NanoKVM)
     environment:
       - NODE_ENV=production
       - PORT=3000
       - VIDEO_DEVICE=/dev/video0
-      - SERIAL_DEVICE=/dev/ttyUSB0
+      - SERIAL_DEVICE=/dev/ttyUSB5
       - SERIAL_BAUD=57600
       - VIDEO_RESOLUTION=2560x1440
       - MJPEG_QUALITY=80
