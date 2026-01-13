@@ -35,8 +35,27 @@ export const Relative = () => {
 
   // listen mouse events
   useEffect(() => {
-    const canvas = document.getElementById('video');
-    if (!canvas) return;
+    let canvas = document.getElementById('video');
+
+    // Retry finding canvas if not immediately available
+    if (!canvas) {
+      const retryInterval = setInterval(() => {
+        canvas = document.getElementById('video');
+        if (canvas) {
+          clearInterval(retryInterval);
+          attachListeners();
+        }
+      }, 100);
+
+      // Give up after 3 seconds
+      setTimeout(() => clearInterval(retryInterval), 3000);
+      return;
+    }
+
+    attachListeners();
+
+    function attachListeners() {
+      if (!canvas) return;
 
     document.addEventListener('pointerlockchange', handlePointerLockChange);
     canvas.addEventListener('click', handleClick);
@@ -140,14 +159,18 @@ export const Relative = () => {
       lastScrollTimeRef.current = currentTime;
     }
 
+    }
+
     return () => {
-      document.removeEventListener('pointerlockchange', handlePointerLockChange);
-      canvas.removeEventListener('click', handleClick);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('wheel', handleWheel);
-      canvas.removeEventListener('contextmenu', disableEvent);
+      if (canvas) {
+        document.removeEventListener('pointerlockchange', handlePointerLockChange);
+        canvas.removeEventListener('click', handleClick);
+        canvas.removeEventListener('mousemove', handleMouseMove);
+        canvas.removeEventListener('mousedown', handleMouseDown);
+        canvas.removeEventListener('mouseup', handleMouseUp);
+        canvas.removeEventListener('wheel', handleWheel);
+        canvas.removeEventListener('contextmenu', disableEvent);
+      }
     };
   }, [resolution, scrollDirection, scrollInterval]);
 

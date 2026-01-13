@@ -18,8 +18,27 @@ export const Absolute = () => {
 
   // listen mouse events
   useEffect(() => {
-    const canvas = document.getElementById('video');
-    if (!canvas) return;
+    let canvas = document.getElementById('video');
+
+    // Retry finding canvas if not immediately available
+    if (!canvas) {
+      const retryInterval = setInterval(() => {
+        canvas = document.getElementById('video');
+        if (canvas) {
+          clearInterval(retryInterval);
+          attachListeners();
+        }
+      }, 100);
+
+      // Give up after 3 seconds
+      setTimeout(() => clearInterval(retryInterval), 3000);
+      return;
+    }
+
+    attachListeners();
+
+    function attachListeners() {
+      if (!canvas) return;
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mouseup', handleMouseUp);
@@ -147,13 +166,17 @@ export const Absolute = () => {
       return { x, y };
     }
 
+    }
+
     return () => {
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('wheel', handleWheel);
-      canvas.removeEventListener('click', disableEvent);
-      canvas.removeEventListener('contextmenu', disableEvent);
+      if (canvas) {
+        canvas.removeEventListener('mousemove', handleMouseMove);
+        canvas.removeEventListener('mousedown', handleMouseDown);
+        canvas.removeEventListener('mouseup', handleMouseUp);
+        canvas.removeEventListener('wheel', handleWheel);
+        canvas.removeEventListener('click', disableEvent);
+        canvas.removeEventListener('contextmenu', disableEvent);
+      }
     };
   }, [resolution, scrollDirection, scrollInterval, videoRotation]);
 

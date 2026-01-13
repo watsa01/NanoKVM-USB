@@ -26,7 +26,7 @@ export const VideoCanvas = ({
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
 
   // Reconnect if no frames for this long (in ms)
-  const RECONNECT_TIMEOUT = 500; // Aggressive reconnection to prevent buffer accumulation
+  const RECONNECT_TIMEOUT = 3000; // Give more time before reconnecting for stability
 
   useEffect(() => {
     if (!mjpegUrl) return;
