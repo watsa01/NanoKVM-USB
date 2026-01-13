@@ -80,10 +80,14 @@ export class RemoteDevice {
       throw new Error('keyboard keys length must be 6');
     }
 
-    this.ws.send('keyboard:data', {
+    const sent = this.ws.send('keyboard:data', {
       modifiers: modifiers.encode(),
       keys,
     });
+
+    if (!sent) {
+      console.error('Failed to send keyboard data - WebSocket disconnected');
+    }
   }
 
   async sendMouseAbsoluteData(
@@ -98,21 +102,29 @@ export class RemoteDevice {
     const normalizedX = width === 0 ? 0 : x / width;
     const normalizedY = height === 0 ? 0 : y / height;
 
-    this.ws.send('mouse:absolute', {
+    const sent = this.ws.send('mouse:absolute', {
       buttons: key.encode(),
       x: normalizedX,
       y: normalizedY,
       scroll,
     });
+
+    if (!sent) {
+      console.error('Failed to send mouse absolute data - WebSocket disconnected');
+    }
   }
 
   async sendMouseRelativeData(msKey: MouseKey, x: number, y: number, scroll: number): Promise<void> {
-    this.ws.send('mouse:relative', {
+    const sent = this.ws.send('mouse:relative', {
       buttons: msKey.encode(),
       x,
       y,
       scroll,
     });
+
+    if (!sent) {
+      console.error('Failed to send mouse relative data - WebSocket disconnected');
+    }
   }
 
   getMjpegUrl(): string {

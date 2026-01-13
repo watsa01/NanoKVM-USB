@@ -73,12 +73,12 @@ export const VideoCanvas = ({
     };
 
     const schedulePeriodicReconnect = () => {
-      // Force reconnect every 1 second to prevent buffer accumulation
+      // Force reconnect every 5 seconds to prevent buffer accumulation while maintaining connection stability
       const periodicReconnectTimer = setTimeout(() => {
         if (!isActive) return;
         console.log('Periodic reconnect to flush network buffers');
         abortControllerRef.current?.abort();
-      }, 1000); // Very aggressive: 1 second
+      }, 5000); // Balanced: 5 seconds for stability
 
       return periodicReconnectTimer;
     };
@@ -104,9 +104,8 @@ export const VideoCanvas = ({
       const now = Date.now();
       const latency = now - lastFrameTimeRef.current;
       if (latency > 1000) {
-        console.warn(`High latency detected: ${latency}ms since last frame arrival - FORCING RECONNECT`);
-        // Immediately reconnect if we detect high latency
-        setTimeout(() => abortControllerRef.current?.abort(), 0);
+        console.warn(`High latency detected: ${latency}ms since last frame arrival`);
+        // Don't force immediate reconnect - let the periodic timer handle it
       }
       lastRenderTimeRef.current = now;
 

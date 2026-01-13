@@ -73,13 +73,19 @@ export class WebSocketClient {
     }
   }
 
-  send(event: string, data?: any): void {
+  send(event: string, data?: any): boolean {
     if (!this.socket?.connected) {
-      console.warn('WebSocket not connected, cannot send event:', event);
-      return;
+      console.error('WebSocket not connected, dropping event:', event);
+      return false;
     }
 
-    this.socket.emit(event, data);
+    try {
+      this.socket.emit(event, data);
+      return true;
+    } catch (error) {
+      console.error('Failed to send WebSocket event:', event, error);
+      return false;
+    }
   }
 
   on<K extends keyof WebSocketClientEvents>(
