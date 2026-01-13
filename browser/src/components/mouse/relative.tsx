@@ -106,11 +106,19 @@ export const Relative = () => {
     async function handleMouseMove(event: any) {
       disableEvent(event);
 
-      const x = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-      const y = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+      let x = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+      let y = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
       if (x === 0 && y === 0) return;
 
-      await send(Math.abs(x) < 10 ? x * 2 : x, Math.abs(y) < 10 ? y * 2 : y, 0);
+      // Apply 2x multiplier for small movements
+      x = Math.abs(x) < 10 ? x * 2 : x;
+      y = Math.abs(y) < 10 ? y * 2 : y;
+
+      // Clamp to valid signed byte range (-128 to 127)
+      x = Math.max(-128, Math.min(127, x));
+      y = Math.max(-128, Math.min(127, y));
+
+      await send(x, y, 0);
 
       mouseJiggler.moveEventCallback();
     }

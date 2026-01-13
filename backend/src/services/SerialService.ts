@@ -145,8 +145,12 @@ export class SerialService {
   }
 
   async sendMouseRelativeData(key: number, x: number, y: number, scroll: number): Promise<void> {
-    const xByte = intToByte(x);
-    const yByte = intToByte(y);
+    // Clamp values to signed byte range (-128 to 127)
+    const clampedX = Math.max(-128, Math.min(127, Math.round(x)));
+    const clampedY = Math.max(-128, Math.min(127, Math.round(y)));
+
+    const xByte = intToByte(clampedX);
+    const yByte = intToByte(clampedY);
 
     const data = [0x01, key, xByte, yByte, scroll];
     const cmdData = new CmdPacket(this.addr, CmdEvent.SEND_MS_REL_DATA, data).encode();
