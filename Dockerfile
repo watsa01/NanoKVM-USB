@@ -7,9 +7,6 @@ RUN corepack enable
 COPY browser/package.json browser/pnpm-lock.yaml ./browser/
 RUN cd browser && pnpm install
 
-# Install http-server globally
-RUN pnpm add -g http-server
-
 # Copy source code after dependencies are installed
 COPY browser ./browser
 RUN cd browser && pnpm build
