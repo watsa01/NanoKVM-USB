@@ -18,7 +18,7 @@ services:
       - VIDEO_DEVICE=/dev/video0
       - SERIAL_DEVICE=/dev/ttyUSB5
       - SERIAL_BAUD=57600
-      - VIDEO_RESOLUTION=2560x1440
+      - VIDEO_RESOLUTION=3440x1440
       - MJPEG_QUALITY=3
       - MJPEG_FPS=30
       - CORS_ORIGIN=*
