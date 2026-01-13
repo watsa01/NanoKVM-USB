@@ -356,10 +356,13 @@ export const VideoCanvas = ({
       style={{
         transform: `scale(${videoScale}) rotate(${videoRotation}deg)`,
         transformOrigin: 'center',
-        maxWidth: shouldSwapDimensions ? '100vh' : '100%',
-        maxHeight: shouldSwapDimensions ? '100vw' : '100%',
-        objectFit: 'scale-down',
-        display: 'block'
+        maxWidth: '100%',
+        maxHeight: '100vh',
+        width: 'auto',
+        height: 'auto',
+        aspectRatio: `${dimensions.width} / ${dimensions.height}`,
+        display: 'block',
+        margin: '0 auto'
       }}
       width={dimensions.width}
       height={dimensions.height}
