@@ -23,6 +23,7 @@ export const VideoCanvas = ({
   const lastFrameTimeRef = useRef<number>(Date.now());
   const lastRenderTimeRef = useRef<number>(Date.now());
   const reconnectTimerRef = useRef<number | null>(null);
+  const periodicTimerRef = useRef<number | null>(null);
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
 
   // Reconnect if no frames for this long (in ms)
@@ -73,14 +74,18 @@ export const VideoCanvas = ({
     };
 
     const schedulePeriodicReconnect = () => {
-      // Force reconnect every 5 seconds to prevent buffer accumulation while maintaining connection stability
-      const periodicReconnectTimer = setTimeout(() => {
+      // Clear any existing periodic timer first
+      if (periodicTimerRef.current !== null) {
+        clearTimeout(periodicTimerRef.current);
+        periodicTimerRef.current = null;
+      }
+
+      // Force reconnect every 10 seconds (increased from 5s for stability)
+      periodicTimerRef.current = setTimeout(() => {
         if (!isActive) return;
         console.log('Periodic reconnect to flush network buffers');
         abortControllerRef.current?.abort();
-      }, 5000); // Balanced: 5 seconds for stability
-
-      return periodicReconnectTimer;
+      }, 10000);
     };
 
     const renderLatestFrame = () => {
@@ -166,7 +171,6 @@ export const VideoCanvas = ({
 
     const startStreaming = async () => {
       const currentGeneration = ++streamGeneration;
-      let periodicTimer: number | null = null;
 
       try {
         console.log(`Starting MJPEG stream fetch (generation ${currentGeneration}):`, mjpegUrl);
@@ -175,7 +179,7 @@ export const VideoCanvas = ({
         startReconnectMonitor();
 
         // Schedule periodic reconnect to flush network buffers
-        periodicTimer = schedulePeriodicReconnect();
+        schedulePeriodicReconnect();
 
         // Update last frame time to prevent immediate reconnect
         lastFrameTimeRef.current = Date.now();
@@ -293,14 +297,15 @@ export const VideoCanvas = ({
         stopReconnectMonitor();
 
         // Clear periodic reconnect timer
-        if (periodicTimer !== null) {
-          clearTimeout(periodicTimer);
+        if (periodicTimerRef.current !== null) {
+          clearTimeout(periodicTimerRef.current);
+          periodicTimerRef.current = null;
         }
 
         // Reconnect if still active
         if (isActive) {
-          console.log(`Stream ended, reconnecting in 100ms...`);
-          await new Promise(resolve => setTimeout(resolve, 100));
+          console.log(`Stream ended, reconnecting in 500ms...`);
+          await new Promise(resolve => setTimeout(resolve, 500));
 
           if (isActive) {
             // Create new abort controller for reconnect
@@ -321,6 +326,13 @@ export const VideoCanvas = ({
       console.log('Cleaning up video stream');
       isActive = false;
       stopReconnectMonitor();
+
+      // Clear periodic timer on unmount
+      if (periodicTimerRef.current !== null) {
+        clearTimeout(periodicTimerRef.current);
+        periodicTimerRef.current = null;
+      }
+
       abortControllerRef.current?.abort();
 
       // Clear pending frames

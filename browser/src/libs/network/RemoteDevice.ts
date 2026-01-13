@@ -7,6 +7,7 @@ export class RemoteDevice {
   private ws: WebSocketClient;
   private mjpegUrl: string = '';
   private pendingInfoRequest: ((info: InfoPacket) => void) | null = null;
+  private onConnectionStateChange?: (connected: boolean) => void;
 
   constructor() {
     this.ws = new WebSocketClient();
@@ -14,6 +15,16 @@ export class RemoteDevice {
   }
 
   private setupEventListeners(): void {
+    this.ws.on('connected', () => {
+      console.log('RemoteDevice: WebSocket connected');
+      this.onConnectionStateChange?.(true);
+    });
+
+    this.ws.on('disconnected', () => {
+      console.warn('RemoteDevice: WebSocket disconnected - inputs will be dropped');
+      this.onConnectionStateChange?.(false);
+    });
+
     this.ws.on('device:info', (data) => {
       if (this.pendingInfoRequest) {
         const info = new InfoPacket([
@@ -58,6 +69,10 @@ export class RemoteDevice {
 
   disconnect(): void {
     this.ws.disconnect();
+  }
+
+  onConnectionChange(callback: (connected: boolean) => void): void {
+    this.onConnectionStateChange = callback;
   }
 
   async getInfo(): Promise<InfoPacket> {

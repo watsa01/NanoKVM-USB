@@ -89,6 +89,12 @@ const App = () => {
       // Connect to remote device
       await remoteDevice.connect(BACKEND_URL);
 
+      // Register connection state change handler
+      remoteDevice.onConnectionChange((connected) => {
+        console.log(`WebSocket connection state changed: ${connected}`);
+        setSerialState(connected ? 'connected' : 'disconnected');
+      });
+
       // Open remote camera stream
       await camera.openRemote(remoteDevice.getMjpegUrl());
 
@@ -101,6 +107,7 @@ const App = () => {
     } catch (err: any) {
       console.error('Failed to connect to remote backend:', err);
       setIsCameraAvailable(false);
+      setSerialState('disconnected');
     }
 
     setIsLoading(false);
@@ -130,6 +137,15 @@ const App = () => {
 
           {serialState === 'notSupported' && (
             <Alert message={t('serial.notSupported')} type="warning" banner closable />
+          )}
+
+          {serialState === 'disconnected' && (
+            <Alert
+              message="WebSocket Disconnected"
+              description="Mouse and keyboard inputs are currently disabled. Attempting to reconnect..."
+              type="error"
+              banner
+            />
           )}
 
           {serialState === 'connected' && (
