@@ -5,7 +5,6 @@ interface VideoCanvasProps {
   videoScale: number;
   videoRotation: number;
   shouldSwapDimensions: boolean;
-  mouseStyle: string;
   className?: string;
 }
 
@@ -14,7 +13,6 @@ export const VideoCanvas = ({
   videoScale,
   videoRotation,
   shouldSwapDimensions,
-  mouseStyle,
   className
 }: VideoCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -23,7 +21,7 @@ export const VideoCanvas = ({
   const latestImageRef = useRef<HTMLImageElement | null>(null);
   const pendingFramesRef = useRef<Uint8Array[]>([]);
   const lastFrameTimeRef = useRef<number>(Date.now());
-  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
 
   // Reconnect if no frames for this long (in ms)

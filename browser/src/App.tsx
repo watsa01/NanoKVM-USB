@@ -146,7 +146,6 @@ const App = () => {
         videoScale={videoScale}
         videoRotation={videoRotation}
         shouldSwapDimensions={shouldSwapDimensions}
-        mouseStyle={mouseStyle}
         className={clsx(
           'block select-none',
           shouldSwapDimensions ? 'min-h-[640px] min-w-[360px]' : 'min-h-[360px] min-w-[640px]',
