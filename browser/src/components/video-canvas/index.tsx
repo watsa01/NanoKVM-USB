@@ -360,7 +360,9 @@ export const VideoCanvas = ({
         maxHeight: '100vh',
         width: 'auto',
         height: 'auto',
-        aspectRatio: `${dimensions.width} / ${dimensions.height}`,
+        aspectRatio: shouldSwapDimensions
+          ? `${dimensions.height} / ${dimensions.width}`
+          : `${dimensions.width} / ${dimensions.height}`,
         display: 'block',
         margin: '0 auto'
       }}
