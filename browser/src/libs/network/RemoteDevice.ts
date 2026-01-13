@@ -51,7 +51,8 @@ export class RemoteDevice {
   }
 
   async connect(serverUrl: string): Promise<void> {
-    this.mjpegUrl = `${serverUrl}/stream/mjpeg`;
+    // Request every 2nd frame (skip=1) to reduce bandwidth by 50%
+    this.mjpegUrl = `${serverUrl}/stream/mjpeg?skip=1`;
     await this.ws.connect(serverUrl);
   }
 

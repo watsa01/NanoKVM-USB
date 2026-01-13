@@ -46,7 +46,9 @@ app.get('/api/devices/serial', async (req: Request, res: Response) => {
 
 // MJPEG video stream endpoint
 app.get('/stream/mjpeg', (req: Request, res: Response) => {
-  console.log('MJPEG stream requested');
+  // Parse skip parameter (how many frames to skip between sends)
+  const skipFrames = parseInt(req.query.skip as string) || 1; // Default skip=1 (send every 2nd frame)
+  console.log(`MJPEG stream requested with skip=${skipFrames}`);
 
   // Set headers for MJPEG stream
   res.writeHead(200, {
@@ -56,8 +58,20 @@ app.get('/stream/mjpeg', (req: Request, res: Response) => {
     'Pragma': 'no-cache',
   });
 
-  // Send frames to client
+  let frameCounter = 0;
+
+  // Send frames to client (with skipping)
   const sendFrame = (data: Buffer) => {
+    frameCounter++;
+
+    // Skip frames based on skip parameter
+    // skip=0: send every frame
+    // skip=1: send every 2nd frame (skip 1)
+    // skip=2: send every 3rd frame (skip 2)
+    if (skipFrames > 0 && frameCounter % (skipFrames + 1) !== 0) {
+      return; // Skip this frame
+    }
+
     res.write('--FRAME\r\n');
     res.write('Content-Type: image/jpeg\r\n');
     res.write(`Content-Length: ${data.length}\r\n`);
