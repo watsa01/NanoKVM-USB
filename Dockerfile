@@ -4,15 +4,15 @@ WORKDIR /app
 RUN corepack enable
 
 # Copy only package files first (for better caching)
-COPY browser/package.json browser/yarn.lock ./browser/
-RUN cd browser && yarn install
+COPY browser/package.json browser/pnpm-lock.yaml ./browser/
+RUN cd browser && pnpm install
 
 # Install http-server globally
-RUN yarn global add http-server
+RUN pnpm add -g http-server
 
 # Copy source code after dependencies are installed
 COPY browser ./browser
-RUN cd browser && yarn build
+RUN cd browser && pnpm build
 
 # Use the alpine version of Nginx for ARM32
 FROM arm32v7/nginx:alpine
