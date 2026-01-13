@@ -86,14 +86,14 @@ const App = () => {
     try {
       console.log(`Connecting to remote backend: ${BACKEND_URL}`);
 
-      // Connect to remote device
-      await remoteDevice.connect(BACKEND_URL);
-
-      // Register connection state change handler
+      // Register connection state change handler BEFORE connecting
       remoteDevice.onConnectionChange((connected) => {
         console.log(`WebSocket connection state changed: ${connected}`);
         setSerialState(connected ? 'connected' : 'disconnected');
       });
+
+      // Connect to remote device
+      await remoteDevice.connect(BACKEND_URL);
 
       // Open remote camera stream
       await camera.openRemote(remoteDevice.getMjpegUrl());
